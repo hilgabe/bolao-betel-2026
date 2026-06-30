@@ -10,6 +10,7 @@ import {
 } from 'lucide-react'
 import { NavLink, Outlet, useNavigate } from 'react-router-dom'
 import { useAuth } from '../context/auth'
+import { NotificationBell } from './NotificationBell'
 
 const navItems = [
   { to: '/home', label: 'Home', icon: Home },
@@ -78,10 +79,13 @@ export function AppShell() {
             ) : null}
           </div>
 
-          <button type="button" onClick={handleLogout} className="btn-secondary px-3" title="Sair">
-            <LogOut className="h-4 w-4" aria-hidden="true" />
-            <span className="hidden sm:inline">Sair</span>
-          </button>
+          <div className="flex items-center gap-2">
+            <NotificationBell />
+            <button type="button" onClick={handleLogout} className="btn-secondary px-3" title="Sair">
+              <LogOut className="h-4 w-4" aria-hidden="true" />
+              <span className="hidden sm:inline">Sair</span>
+            </button>
+          </div>
         </div>
       </header>
 

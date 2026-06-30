@@ -1,4 +1,4 @@
-import { Save, Sparkles } from 'lucide-react'
+import { Radio, Save, Sparkles } from 'lucide-react'
 import {
   collection,
   doc,
@@ -13,6 +13,7 @@ import {
 import { useEffect, useMemo, useState, type FormEvent } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import { TeamLabel } from '../components/TeamLabel'
+import { addGoalMatchEvent, useMatchEvents } from '../hooks/useMatchEvents'
 import { useMatches } from '../hooks/useMatches'
 import { useMatchPredictions } from '../hooks/usePredictions'
 import { db } from '../lib/firebase'
@@ -636,6 +637,82 @@ function ManualPredictionForm({ match }: { match: Match }) {
   )
 }
 
+function LiveMatchEventForm({ match }: { match: Match }) {
+  const { events } = useMatchEvents(match.id)
+  const [playerName, setPlayerName] = useState('')
+  const [saving, setSaving] = useState(false)
+  const [message, setMessage] = useState<string | null>(null)
+
+  async function handleSubmit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault()
+    const scorer = playerName.trim()
+    if (!scorer) {
+      setMessage('Informe quem fez o gol.')
+      return
+    }
+
+    setSaving(true)
+    setMessage(null)
+
+    try {
+      await addGoalMatchEvent(match, scorer)
+      setPlayerName('')
+      setMessage(`Gol de ${scorer} enviado para as notificacoes.`)
+    } catch (saveError) {
+      setMessage(saveError instanceof Error ? saveError.message : 'Nao foi possivel enviar o lance.')
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  return (
+    <section className="panel mb-5 p-4">
+      <div className="mb-4">
+        <p className="text-sm font-bold uppercase text-betel-blue">Ao vivo</p>
+        <h2 className="mt-1 text-xl font-black text-slate-950">Lance importante</h2>
+        <p className="mt-1 text-sm text-slate-600">
+          Use apenas para gols. O app avisa quem cravou o jogador e quem tinha outro nome no
+          palpite.
+        </p>
+      </div>
+
+      <form onSubmit={handleSubmit} className="grid gap-3 sm:grid-cols-[1fr_auto]">
+        <label>
+          <span className="label">Jogador que fez gol</span>
+          <input
+            className="input mt-1"
+            value={playerName}
+            onChange={(inputEvent) => setPlayerName(inputEvent.target.value)}
+            placeholder="Exemplo: Vini Jr"
+          />
+        </label>
+        <button type="submit" className="btn-primary self-end" disabled={saving}>
+          <Radio className="h-4 w-4" aria-hidden="true" />
+          Enviar gol
+        </button>
+      </form>
+
+      {message ? <p className="mt-3 text-sm font-bold text-slate-700">{message}</p> : null}
+
+      {events.length > 0 ? (
+        <div className="mt-4 rounded-lg bg-slate-50 p-3">
+          <p className="text-sm font-black text-slate-950">Ultimos lances enviados</p>
+          <div className="mt-2 flex flex-wrap gap-2">
+            {events.slice(0, 5).map((item) => (
+              <span
+                key={item.id}
+                className="rounded-lg bg-white px-2 py-1 text-xs font-bold text-slate-700"
+              >
+                {item.playerName}
+              </span>
+            ))}
+          </div>
+        </div>
+      ) : null}
+    </section>
+  )
+}
+
 function AdminPredictionScore({ prediction }: { prediction: Prediction }) {
   const [form, setForm] = useState<AdminPredictionFormState>(stateFromPrediction(prediction))
   const [saving, setSaving] = useState(false)
@@ -774,6 +851,7 @@ export function AdminMatchPage() {
       </section>
 
       <AdminResultForm match={match} predictions={predictions} />
+      <LiveMatchEventForm match={match} />
       <ManualPredictionForm match={match} />
 
       <section className="mb-3">
