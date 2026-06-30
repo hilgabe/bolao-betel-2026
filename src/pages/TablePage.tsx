@@ -1,6 +1,7 @@
 import { CheckCircle2, Clock } from 'lucide-react'
 import { TeamLabel } from '../components/TeamLabel'
 import { useMatches } from '../hooks/useMatches'
+import { formatMatchScore } from '../lib/matchResult'
 import type { Match } from '../types'
 
 const phaseOrder = [
@@ -72,6 +73,9 @@ function MatchBracketCard({ match }: { match: Match }) {
 
       {match.winner ? (
         <p className="mt-3 text-sm font-bold text-green-800">Classificado: {match.winner}</p>
+      ) : null}
+      {resultReady ? (
+        <p className="mt-1 text-sm font-bold text-slate-700">Placar: {formatMatchScore(match)}</p>
       ) : null}
       {match.scorersTexto ? (
         <p className="mt-2 text-sm text-slate-600">Gols: {match.scorersTexto}</p>

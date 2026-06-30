@@ -1,5 +1,6 @@
 import { CheckCircle2, ChevronRight, Clock, Lock } from 'lucide-react'
 import { Link } from 'react-router-dom'
+import { formatPredictionScore } from '../lib/matchResult'
 import { formatMatchDateTime, getMatchAvailability } from '../lib/time'
 import type { Match, Prediction } from '../types'
 import { TeamLabel } from './TeamLabel'
@@ -62,8 +63,12 @@ export function MatchCard({
             <p className="mt-3 text-sm text-slate-600">{availability.message}</p>
           ) : null}
         </div>
-        {availability.isOpen ? (
-          <Link to={`/palpite/${match.id}`} className="btn-primary shrink-0 px-3" title="Fazer palpite">
+        {availability.isOpen || availability.state === 'closed' ? (
+          <Link
+            to={`/palpite/${match.id}`}
+            className={availability.isOpen ? 'btn-primary shrink-0 px-3' : 'btn-secondary shrink-0 px-3'}
+            title={availability.isOpen ? 'Fazer palpite' : 'Ver palpites'}
+          >
             <ChevronRight className="h-4 w-4" aria-hidden="true" />
           </Link>
         ) : (
@@ -75,7 +80,7 @@ export function MatchCard({
       {prediction ? (
         <div className="mt-4 rounded-lg border border-slate-200 bg-slate-50 p-3 text-sm">
           <p className="font-bold text-slate-950">
-            Seu palpite: {prediction.palpiteA} x {prediction.palpiteB}, classifica{' '}
+            Seu palpite: {formatPredictionScore(prediction)}, classifica{' '}
             {prediction.classificado}
           </p>
           <p className="mt-1 text-slate-600">

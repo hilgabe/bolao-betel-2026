@@ -27,6 +27,8 @@ export interface Match {
   manualOpen?: boolean
   scoreA?: number | null
   scoreB?: number | null
+  penaltiesA?: number | null
+  penaltiesB?: number | null
   winner?: string
   scorersTexto?: string
   resultUpdatedAt?: unknown
@@ -49,6 +51,8 @@ export interface Prediction extends ScoreFields {
   teamB: string
   palpiteA: number
   palpiteB: number
+  palpitePenaltisA?: number | null
+  palpitePenaltisB?: number | null
   classificado: string
   jogadoresGolTexto: string
   totalPontos: number

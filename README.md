@@ -92,11 +92,13 @@ Em `/admin/jogo/:matchId`, atualize o resultado oficial uma vez por jogo. A tabe
 ## Pontuacao
 
 - Classificado correto: 1 ponto.
-- Placar exato: 2 pontos.
+- Placar exato do jogo antes dos penaltis: 2 pontos.
 - Gols dos jogadores: 1 ponto por gol previsto corretamente para cada jogador.
 - Extras: campo manual do admin para ajustes excepcionais.
 
 Exemplo: se Vini Jr fez 2 gols e o participante escreveu `Vini Jr 2`, recebe 2 pontos de gols. Se escreveu apenas `Vini Jr`, recebe 1 ponto. Se escreveu `Vini Jr 3`, recebe no maximo 2 pontos, porque o limite e o numero real de gols.
+
+Se o placar terminar empatado, o participante e o admin precisam informar os penaltis. O classificado e calculado pelos penaltis, e esse acerto entra na regra de classificado correto.
 
 ## Regras do Firestore para comecar
 
@@ -136,6 +138,8 @@ seu-projeto.vercel.app
 - Nao ha campo de decepcao.
 - Nao ha campo de destaque do jogo.
 - Nomes de jogadores sao texto livre.
+- Empate exige penaltis para definir o classificado.
+- Palpites dos usuarios ficam visiveis na pagina do jogo depois que o prazo encerra.
 - O admin lanca o resultado oficial uma vez por jogo.
 - A tabela dinamica reflete os resultados oficiais salvos em `matches`.
 - Ranking soma os pontos gravados nos palpites de cada usuario.

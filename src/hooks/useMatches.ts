@@ -21,6 +21,8 @@ function normalizeMatch(id: string, data: Partial<Match>): Match {
     manualOpen: data.manualOpen ?? defaultManualOpenMatchIds.has(id),
     scoreA: data.scoreA ?? null,
     scoreB: data.scoreB ?? null,
+    penaltiesA: data.penaltiesA ?? null,
+    penaltiesB: data.penaltiesB ?? null,
     winner: data.winner || '',
     scorersTexto: data.scorersTexto || '',
     resultUpdatedAt: data.resultUpdatedAt,

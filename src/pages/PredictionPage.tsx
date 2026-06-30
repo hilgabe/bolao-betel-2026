@@ -5,13 +5,17 @@ import { Link, useNavigate, useParams } from 'react-router-dom'
 import { TeamLabel } from '../components/TeamLabel'
 import { useAuth } from '../context/auth'
 import { useMatches } from '../hooks/useMatches'
-import { useUserPredictions } from '../hooks/usePredictions'
+import { useMatchPredictions, useUserPredictions } from '../hooks/usePredictions'
 import { db } from '../lib/firebase'
+import { formatPredictionScore, numberFromForm, winnerFromScores } from '../lib/matchResult'
 import { formatMatchDateTime, getMatchAvailability } from '../lib/time'
+import type { Prediction } from '../types'
 
 interface PredictionFormState {
   palpiteA: string
   palpiteB: string
+  palpitePenaltisA: string
+  palpitePenaltisB: string
   classificado: string
   jogadoresGolTexto: string
 }
@@ -20,9 +24,61 @@ function emptyForm(classificado = ''): PredictionFormState {
   return {
     palpiteA: '',
     palpiteB: '',
+    palpitePenaltisA: '',
+    palpitePenaltisB: '',
     classificado,
     jogadoresGolTexto: '',
   }
+}
+
+function scoreIsDraw(form: PredictionFormState) {
+  return form.palpiteA !== '' && form.palpiteB !== '' && Number(form.palpiteA) === Number(form.palpiteB)
+}
+
+function PublicPredictionsList({
+  predictions,
+  show,
+}: {
+  predictions: Prediction[]
+  show: boolean
+}) {
+  if (!show) {
+    return null
+  }
+
+  return (
+    <section className="panel mt-5 p-5">
+      <h2 className="text-xl font-black text-slate-950">Palpites dos usuarios</h2>
+      <p className="mt-1 text-sm text-slate-600">
+        Os palpites ficam visiveis aqui depois que o prazo do jogo encerra.
+      </p>
+
+      <div className="mt-4 grid gap-3">
+        {predictions.map((prediction) => (
+          <article key={prediction.id} className="rounded-lg border border-slate-200 bg-slate-50 p-3">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <p className="font-black text-slate-950">{prediction.userName}</p>
+              <span className="rounded-lg bg-white px-2 py-1 text-xs font-black text-slate-700">
+                {prediction.pontuado ? `${prediction.totalPontos} pts` : 'Aguardando'}
+              </span>
+            </div>
+            <p className="mt-2 text-sm font-bold text-slate-700">
+              {formatPredictionScore(prediction)}, classifica {prediction.classificado}
+            </p>
+            <p className="mt-1 text-sm text-slate-600">
+              Gols: {prediction.jogadoresGolTexto || '-'}
+            </p>
+          </article>
+        ))}
+      </div>
+
+      {predictions.length === 0 ? (
+        <div className="mt-4 rounded-lg bg-slate-50 p-3 text-sm text-slate-600">
+          Nenhum palpite enviado para este jogo.
+        </div>
+      ) : null}
+    </section>
+  )
 }
 
 export function PredictionPage() {
@@ -31,6 +87,7 @@ export function PredictionPage() {
   const { profile } = useAuth()
   const { matches } = useMatches()
   const { predictions } = useUserPredictions(profile?.uid)
+  const { predictions: matchPredictions } = useMatchPredictions(matchId)
   const match = matches.find((item) => item.id === matchId)
   const existingPrediction = predictions.find((prediction) => prediction.matchId === matchId)
   const availability = match ? getMatchAvailability(match) : null
@@ -43,6 +100,16 @@ export function PredictionPage() {
       setForm({
         palpiteA: String(existingPrediction.palpiteA),
         palpiteB: String(existingPrediction.palpiteB),
+        palpitePenaltisA:
+          existingPrediction.palpitePenaltisA === null ||
+          existingPrediction.palpitePenaltisA === undefined
+            ? ''
+            : String(existingPrediction.palpitePenaltisA),
+        palpitePenaltisB:
+          existingPrediction.palpitePenaltisB === null ||
+          existingPrediction.palpitePenaltisB === undefined
+            ? ''
+            : String(existingPrediction.palpitePenaltisB),
         classificado: existingPrediction.classificado,
         jogadoresGolTexto: existingPrediction.jogadoresGolTexto,
       })
@@ -59,6 +126,19 @@ export function PredictionPage() {
     match,
     profile,
   ])
+  const drawPrediction = scoreIsDraw(form)
+  const predictedWinner = match
+    ? winnerFromScores({
+        teamA: match.teamA,
+        teamB: match.teamB,
+        scoreA: numberFromForm(form.palpiteA),
+        scoreB: numberFromForm(form.palpiteB),
+        penaltiesA: drawPrediction ? numberFromForm(form.palpitePenaltisA) : null,
+        penaltiesB: drawPrediction ? numberFromForm(form.palpitePenaltisB) : null,
+      })
+    : ''
+  const showPublicPredictions =
+    Boolean(match && availability?.state === 'closed') || profile?.role === 'admin'
 
   if (!match) {
     return (
@@ -83,6 +163,26 @@ export function PredictionPage() {
     setError(null)
 
     try {
+      const palpiteA = Number(form.palpiteA)
+      const palpiteB = Number(form.palpiteB)
+      const needsPenalties = palpiteA === palpiteB
+      const palpitePenaltisA = needsPenalties ? numberFromForm(form.palpitePenaltisA) : null
+      const palpitePenaltisB = needsPenalties ? numberFromForm(form.palpitePenaltisB) : null
+      const classificado = winnerFromScores({
+        teamA: match.teamA,
+        teamB: match.teamB,
+        scoreA: palpiteA,
+        scoreB: palpiteB,
+        penaltiesA: palpitePenaltisA,
+        penaltiesB: palpitePenaltisB,
+      })
+
+      if (!classificado || (needsPenalties && palpitePenaltisA === palpitePenaltisB)) {
+        setError('Informe o placar e, em caso de empate, os penaltis com um vencedor.')
+        setSaving(false)
+        return
+      }
+
       const predictionId = `${profile.uid}_${match.id}`
       const payload: Record<string, unknown> = {
         id: predictionId,
@@ -92,9 +192,11 @@ export function PredictionPage() {
         matchCode: match.codigo,
         teamA: match.teamA,
         teamB: match.teamB,
-        palpiteA: Number(form.palpiteA),
-        palpiteB: Number(form.palpiteB),
-        classificado: form.classificado,
+        palpiteA,
+        palpiteB,
+        palpitePenaltisA,
+        palpitePenaltisB,
+        classificado,
         jogadoresGolTexto: form.jogadoresGolTexto.trim(),
         pontosPlacar: existingPrediction?.pontosPlacar || 0,
         pontosGols: existingPrediction?.pontosGols || 0,
@@ -171,18 +273,44 @@ export function PredictionPage() {
             </label>
           </div>
 
+          {drawPrediction ? (
+            <div className="rounded-lg border border-slate-200 bg-slate-50 p-3">
+              <p className="mb-2 text-sm font-black text-slate-950">Penaltis</p>
+              <div className="grid grid-cols-[1fr_auto_1fr] items-end gap-3">
+                <label>
+                  <span className="label">{match.teamA}</span>
+                  <input
+                    className="input mt-1 text-center text-lg font-black"
+                    type="number"
+                    min="0"
+                    value={form.palpitePenaltisA}
+                    onChange={(event) => setForm({ ...form, palpitePenaltisA: event.target.value })}
+                    required={drawPrediction}
+                    disabled={!availability?.isOpen}
+                  />
+                </label>
+                <span className="pb-2 text-lg font-black text-slate-400">x</span>
+                <label>
+                  <span className="label">{match.teamB}</span>
+                  <input
+                    className="input mt-1 text-center text-lg font-black"
+                    type="number"
+                    min="0"
+                    value={form.palpitePenaltisB}
+                    onChange={(event) => setForm({ ...form, palpitePenaltisB: event.target.value })}
+                    required={drawPrediction}
+                    disabled={!availability?.isOpen}
+                  />
+                </label>
+              </div>
+            </div>
+          ) : null}
+
           <label className="block">
             <span className="label">Quem se classifica</span>
-            <select
-              className="input mt-1"
-              value={form.classificado}
-              onChange={(event) => setForm({ ...form, classificado: event.target.value })}
-              required
-              disabled={!availability?.isOpen}
-            >
-              <option value={match.teamA}>{match.teamA}</option>
-              <option value={match.teamB}>{match.teamB}</option>
-            </select>
+            <div className="mt-1 rounded-lg border border-slate-300 bg-slate-50 px-3 py-2 text-sm font-black text-slate-950">
+              {predictedWinner || 'Defina o placar para calcular'}
+            </div>
           </label>
 
           <label className="block">
@@ -209,6 +337,7 @@ export function PredictionPage() {
           </div>
         </form>
       </section>
+      <PublicPredictionsList predictions={matchPredictions} show={showPublicPredictions} />
     </div>
   )
 }

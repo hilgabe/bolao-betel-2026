@@ -16,6 +16,7 @@ import { TeamLabel } from '../components/TeamLabel'
 import { useMatches } from '../hooks/useMatches'
 import { useMatchPredictions } from '../hooks/usePredictions'
 import { db } from '../lib/firebase'
+import { formatPredictionScore, numberFromForm, winnerFromScores } from '../lib/matchResult'
 import { authEmailFromParticipantId, participantIdFromName } from '../lib/participants'
 import {
   calculateAutomaticPredictionScores,
@@ -30,6 +31,8 @@ import type { Match, Prediction, ScoreFields } from '../types'
 interface ResultFormState {
   scoreA: string
   scoreB: string
+  penaltiesA: string
+  penaltiesB: string
   winner: string
   scorersTexto: string
 }
@@ -43,14 +46,24 @@ interface ManualPredictionFormState {
   userName: string
   palpiteA: string
   palpiteB: string
+  palpitePenaltisA: string
+  palpitePenaltisB: string
   classificado: string
   jogadoresGolTexto: string
+}
+
+function formScoreIsDraw(scoreA: string, scoreB: string) {
+  return scoreA !== '' && scoreB !== '' && Number(scoreA) === Number(scoreB)
 }
 
 function resultStateFromMatch(match: Match): ResultFormState {
   return {
     scoreA: match.scoreA === null || match.scoreA === undefined ? '' : String(match.scoreA),
     scoreB: match.scoreB === null || match.scoreB === undefined ? '' : String(match.scoreB),
+    penaltiesA:
+      match.penaltiesA === null || match.penaltiesA === undefined ? '' : String(match.penaltiesA),
+    penaltiesB:
+      match.penaltiesB === null || match.penaltiesB === undefined ? '' : String(match.penaltiesB),
     winner: match.winner || match.teamA,
     scorersTexto: match.scorersTexto || '',
   }
@@ -72,6 +85,8 @@ function emptyManualPredictionForm(match: Match): ManualPredictionFormState {
     userName: '',
     palpiteA: '',
     palpiteB: '',
+    palpitePenaltisA: '',
+    palpitePenaltisB: '',
     classificado: match.teamA,
     jogadoresGolTexto: '',
   }
@@ -88,11 +103,27 @@ async function recalculateUserTotal(userId: string) {
 }
 
 function buildOfficialResult(match: Match, form: ResultFormState) {
+  const scoreA = Number(form.scoreA)
+  const scoreB = Number(form.scoreB)
+  const needsPenalties = scoreA === scoreB
+  const penaltiesA = needsPenalties ? numberFromForm(form.penaltiesA) : null
+  const penaltiesB = needsPenalties ? numberFromForm(form.penaltiesB) : null
+  const winner = winnerFromScores({
+    teamA: match.teamA,
+    teamB: match.teamB,
+    scoreA,
+    scoreB,
+    penaltiesA,
+    penaltiesB,
+  })
+
   return {
     ...match,
-    scoreA: Number(form.scoreA),
-    scoreB: Number(form.scoreB),
-    winner: form.winner,
+    scoreA,
+    scoreB,
+    penaltiesA,
+    penaltiesB,
+    winner,
     scorersTexto: form.scorersTexto.trim(),
     status: 'finished' as const,
   }
@@ -120,6 +151,10 @@ function AdminResultForm({
     }
 
     const officialResult = buildOfficialResult(match, form)
+    if (!officialResult.winner) {
+      throw new Error('Em caso de empate, informe os penaltis com um vencedor.')
+    }
+
     await setDoc(
       doc(db, 'matches', match.id),
       {
@@ -226,6 +261,16 @@ function AdminResultForm({
     }
   }
 
+  const resultNeedsPenalties = formScoreIsDraw(form.scoreA, form.scoreB)
+  const calculatedWinner = winnerFromScores({
+    teamA: match.teamA,
+    teamB: match.teamB,
+    scoreA: numberFromForm(form.scoreA),
+    scoreB: numberFromForm(form.scoreB),
+    penaltiesA: resultNeedsPenalties ? numberFromForm(form.penaltiesA) : null,
+    penaltiesB: resultNeedsPenalties ? numberFromForm(form.penaltiesB) : null,
+  })
+
   return (
     <section className="panel mb-5 p-4">
       <div className="mb-4">
@@ -289,16 +334,42 @@ function AdminResultForm({
           </label>
         </div>
 
+        {resultNeedsPenalties ? (
+          <div className="rounded-lg border border-slate-200 bg-slate-50 p-3">
+            <p className="mb-2 text-sm font-black text-slate-950">Penaltis oficiais</p>
+            <div className="grid grid-cols-[1fr_auto_1fr] items-end gap-3">
+              <label>
+                <span className="label">{match.teamA}</span>
+                <input
+                  className="input mt-1 text-center text-lg font-black"
+                  type="number"
+                  min="0"
+                  value={form.penaltiesA}
+                  onChange={(event) => setForm({ ...form, penaltiesA: event.target.value })}
+                  required={resultNeedsPenalties}
+                />
+              </label>
+              <span className="pb-2 text-lg font-black text-slate-400">x</span>
+              <label>
+                <span className="label">{match.teamB}</span>
+                <input
+                  className="input mt-1 text-center text-lg font-black"
+                  type="number"
+                  min="0"
+                  value={form.penaltiesB}
+                  onChange={(event) => setForm({ ...form, penaltiesB: event.target.value })}
+                  required={resultNeedsPenalties}
+                />
+              </label>
+            </div>
+          </div>
+        ) : null}
+
         <label className="block">
           <span className="label">Classificado real</span>
-          <select
-            className="input mt-1"
-            value={form.winner}
-            onChange={(event) => setForm({ ...form, winner: event.target.value })}
-          >
-            <option value={match.teamA}>{match.teamA}</option>
-            <option value={match.teamB}>{match.teamB}</option>
-          </select>
+          <div className="mt-1 rounded-lg border border-slate-300 bg-slate-50 px-3 py-2 text-sm font-black text-slate-950">
+            {calculatedWinner || 'Defina o placar para calcular'}
+          </div>
         </label>
 
         <label className="block">
@@ -367,6 +438,26 @@ function ManualPredictionForm({ match }: { match: Match }) {
     setMessage(null)
 
     try {
+      const palpiteA = Number(form.palpiteA)
+      const palpiteB = Number(form.palpiteB)
+      const needsPenalties = palpiteA === palpiteB
+      const palpitePenaltisA = needsPenalties ? numberFromForm(form.palpitePenaltisA) : null
+      const palpitePenaltisB = needsPenalties ? numberFromForm(form.palpitePenaltisB) : null
+      const classificado = winnerFromScores({
+        teamA: match.teamA,
+        teamB: match.teamB,
+        scoreA: palpiteA,
+        scoreB: palpiteB,
+        penaltiesA: palpitePenaltisA,
+        penaltiesB: palpitePenaltisB,
+      })
+
+      if (needsPenalties && (!classificado || palpitePenaltisA === palpitePenaltisB)) {
+        setMessage('Em caso de empate, informe os penaltis com um vencedor.')
+        setSaving(false)
+        return
+      }
+
       const userId = participantIdFromName(participantName)
       const predictionId = `${userId}_${match.id}`
       const emptyScores = emptyScoreFields()
@@ -394,9 +485,11 @@ function ManualPredictionForm({ match }: { match: Match }) {
           matchCode: match.codigo,
           teamA: match.teamA,
           teamB: match.teamB,
-          palpiteA: Number(form.palpiteA),
-          palpiteB: Number(form.palpiteB),
-          classificado: form.classificado,
+          palpiteA,
+          palpiteB,
+          palpitePenaltisA,
+          palpitePenaltisB,
+          classificado,
           jogadoresGolTexto: form.jogadoresGolTexto.trim(),
           ...emptyScores,
           totalPontos: 0,
@@ -415,6 +508,16 @@ function ManualPredictionForm({ match }: { match: Match }) {
       setSaving(false)
     }
   }
+
+  const manualNeedsPenalties = formScoreIsDraw(form.palpiteA, form.palpiteB)
+  const manualWinner = winnerFromScores({
+    teamA: match.teamA,
+    teamB: match.teamB,
+    scoreA: numberFromForm(form.palpiteA),
+    scoreB: numberFromForm(form.palpiteB),
+    penaltiesA: manualNeedsPenalties ? numberFromForm(form.palpitePenaltisA) : null,
+    penaltiesB: manualNeedsPenalties ? numberFromForm(form.palpitePenaltisB) : null,
+  })
 
   return (
     <section className="panel mb-5 p-4">
@@ -465,16 +568,46 @@ function ManualPredictionForm({ match }: { match: Match }) {
           </label>
         </div>
 
+        {manualNeedsPenalties ? (
+          <div className="rounded-lg border border-slate-200 bg-slate-50 p-3">
+            <p className="mb-2 text-sm font-black text-slate-950">Penaltis do palpite</p>
+            <div className="grid grid-cols-[1fr_auto_1fr] items-end gap-3">
+              <label>
+                <span className="label">{match.teamA}</span>
+                <input
+                  className="input mt-1 text-center text-lg font-black"
+                  type="number"
+                  min="0"
+                  value={form.palpitePenaltisA}
+                  onChange={(event) =>
+                    setForm({ ...form, palpitePenaltisA: event.target.value })
+                  }
+                  required={manualNeedsPenalties}
+                />
+              </label>
+              <span className="pb-2 text-lg font-black text-slate-400">x</span>
+              <label>
+                <span className="label">{match.teamB}</span>
+                <input
+                  className="input mt-1 text-center text-lg font-black"
+                  type="number"
+                  min="0"
+                  value={form.palpitePenaltisB}
+                  onChange={(event) =>
+                    setForm({ ...form, palpitePenaltisB: event.target.value })
+                  }
+                  required={manualNeedsPenalties}
+                />
+              </label>
+            </div>
+          </div>
+        ) : null}
+
         <label className="block">
           <span className="label">Quem se classifica</span>
-          <select
-            className="input mt-1"
-            value={form.classificado}
-            onChange={(event) => setForm({ ...form, classificado: event.target.value })}
-          >
-            <option value={match.teamA}>{match.teamA}</option>
-            <option value={match.teamB}>{match.teamB}</option>
-          </select>
+          <div className="mt-1 rounded-lg border border-slate-300 bg-slate-50 px-3 py-2 text-sm font-black text-slate-950">
+            {manualWinner || 'Defina o placar para calcular'}
+          </div>
         </label>
 
         <label className="block">
@@ -546,8 +679,7 @@ function AdminPredictionScore({ prediction }: { prediction: Prediction }) {
       <div className="mb-4">
         <p className="text-lg font-black text-slate-950">{prediction.userName}</p>
         <p className="text-sm text-slate-600">
-          Palpite: {prediction.palpiteA} x {prediction.palpiteB}, classifica{' '}
-          {prediction.classificado}
+          Palpite: {formatPredictionScore(prediction)}, classifica {prediction.classificado}
         </p>
         <p className="mt-2 text-sm text-slate-600">
           Gols previstos: {prediction.jogadoresGolTexto || '-'}

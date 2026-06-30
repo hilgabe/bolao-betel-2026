@@ -71,6 +71,7 @@ export function RulesPage() {
         <h2 className="text-xl font-black text-slate-950">Observacoes</h2>
         <ul className="mt-3 space-y-2 text-sm text-slate-700">
           <li>Os palpites ficam liberados somente no dia do jogo e fecham no horario da partida.</li>
+          <li>Se o placar estiver empatado, informe os penaltis para definir quem se classifica.</li>
           <li>O campo de gols vale por ocorrencia. Se o jogador fez 2 gols e voce colocou 2, recebe 2 pontos.</li>
           <li>Se houver ajuste manual necessario, o admin pode corrigir a pontuacao individualmente.</li>
         </ul>

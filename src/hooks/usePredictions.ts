@@ -16,6 +16,8 @@ function normalizePrediction(id: string, data: Partial<Prediction>): Prediction 
     teamB: data.teamB || '',
     palpiteA: Number(data.palpiteA || 0),
     palpiteB: Number(data.palpiteB || 0),
+    palpitePenaltisA: data.palpitePenaltisA ?? null,
+    palpitePenaltisB: data.palpitePenaltisB ?? null,
     classificado: data.classificado || '',
     jogadoresGolTexto: data.jogadoresGolTexto || '',
     pontosPlacar: Number(data.pontosPlacar ?? emptyScores.pontosPlacar),
