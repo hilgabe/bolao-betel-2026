@@ -70,5 +70,19 @@ export interface RankingEntry {
   totalPontos: number
   palpitesFeitos: number
   palpitesPontuados: number
+  fontesPontos: RankingPointSource[]
   posicao: number
+}
+
+export interface RankingPointSource {
+  predictionId: string
+  matchId: string
+  matchCode: string
+  teamA: string
+  teamB: string
+  total: number
+  itens: Array<{
+    label: string
+    points: number
+  }>
 }
