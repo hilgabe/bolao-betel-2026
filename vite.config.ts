@@ -7,7 +7,7 @@ export default defineConfig({
     react(),
     VitePWA({
       registerType: 'autoUpdate',
-      includeAssets: ['favicon.svg', 'assets/tabela-mata-mata-copa-2026.png'],
+      includeAssets: ['favicon.svg', 'logo-betel.svg', 'assets/tabela-mata-mata-copa-2026.png'],
       manifest: {
         name: 'Bolão Betel 2026',
         short_name: 'Betel 2026',
