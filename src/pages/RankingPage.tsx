@@ -4,6 +4,8 @@ import { useRanking } from '../hooks/useRanking'
 import type { RankingEntry } from '../types'
 
 const avatarsByName: Record<string, string> = {
+  carlos: '/avatars/carlos-eduardo.jpg',
+  'carlos eduardo': '/avatars/carlos-eduardo.jpg',
   gabriel: '/avatars/gabriel.jpg',
   ghabryel: '/avatars/ghabryel.jpg',
   gustavo: '/avatars/gustavo.jpg',
