@@ -86,29 +86,3 @@ export interface RankingPointSource {
     points: number
   }>
 }
-
-export type MatchEventType = 'goal'
-
-export interface MatchEvent {
-  id: string
-  type: MatchEventType
-  matchId: string
-  matchCode: string
-  teamA: string
-  teamB: string
-  playerName: string
-  createdAtMs: number
-  createdAt?: unknown
-}
-
-export type AppNotificationType = 'goal-hit' | 'goal-miss' | 'rank-up' | 'prediction-reminder'
-
-export interface AppNotification {
-  id: string
-  type: AppNotificationType
-  title: string
-  body: string
-  createdAtMs: number
-  read: boolean
-  link?: string
-}
