@@ -72,6 +72,7 @@ function resultStateFromMatch(match: Match): ResultFormState {
 function stateFromPrediction(prediction: Prediction): AdminPredictionFormState {
   return {
     pontosPlacar: prediction.pontosPlacar,
+    pontosPenaltis: prediction.pontosPenaltis,
     pontosGols: prediction.pontosGols,
     pontosClassificado: prediction.pontosClassificado,
     pontosExtras: prediction.pontosExtras,
@@ -653,6 +654,7 @@ function AdminPredictionScore({ prediction }: { prediction: Prediction }) {
     try {
       const updatedScores: ScoreFields = {
         pontosPlacar: Number(form.pontosPlacar || 0),
+        pontosPenaltis: Number(form.pontosPenaltis || 0),
         pontosGols: Number(form.pontosGols || 0),
         pontosClassificado: Number(form.pontosClassificado || 0),
         pontosExtras: Number(form.pontosExtras || 0),
@@ -687,7 +689,7 @@ function AdminPredictionScore({ prediction }: { prediction: Prediction }) {
       </div>
 
       <form onSubmit={handleSubmit} className="space-y-4">
-        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
           {scoreFieldLabels.map((item) => (
             <label key={item.field}>
               <span className="label">{item.label}</span>

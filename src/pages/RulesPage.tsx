@@ -1,4 +1,4 @@
-import { CheckCircle2, Goal, ListChecks, Trophy } from 'lucide-react'
+import { CheckCircle2, Goal, ListChecks, ShieldCheck, Trophy } from 'lucide-react'
 import { scoringRules } from '../lib/scoring'
 
 const rules = [
@@ -12,7 +12,13 @@ const rules = [
     title: 'Placar exato',
     points: `${scoringRules.exactScore} pontos`,
     icon: CheckCircle2,
-    text: 'Acertou exatamente o placar final do jogo, ganha 2 pontos.',
+    text: 'Acertou exatamente o placar do jogo antes dos penaltis, ganha 2 pontos.',
+  },
+  {
+    title: 'Penaltis exatos',
+    points: `${scoringRules.exactPenalties} ponto`,
+    icon: ShieldCheck,
+    text: 'Quando houver empate, acertar o placar dos penaltis vale 1 ponto separado.',
   },
   {
     title: 'Gols dos jogadores',
@@ -33,7 +39,7 @@ export function RulesPage() {
         </p>
       </section>
 
-      <section className="grid gap-3 md:grid-cols-3">
+      <section className="grid gap-3 md:grid-cols-4">
         {rules.map((rule) => (
           <article key={rule.title} className="panel p-4">
             <div className="mb-4 flex items-start justify-between gap-3">
@@ -72,6 +78,7 @@ export function RulesPage() {
         <ul className="mt-3 space-y-2 text-sm text-slate-700">
           <li>Os palpites ficam liberados somente no dia do jogo e fecham no horario da partida.</li>
           <li>Se o placar estiver empatado, informe os penaltis para definir quem se classifica.</li>
+          <li>Placar do jogo e placar dos penaltis pontuam separados; acertar um nao depende do outro.</li>
           <li>O campo de gols vale por ocorrencia. Se o jogador fez 2 gols e voce colocou 2, recebe 2 pontos.</li>
           <li>Se houver ajuste manual necessario, o admin pode corrigir a pontuacao individualmente.</li>
         </ul>

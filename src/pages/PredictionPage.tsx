@@ -199,6 +199,7 @@ export function PredictionPage() {
         classificado,
         jogadoresGolTexto: form.jogadoresGolTexto.trim(),
         pontosPlacar: existingPrediction?.pontosPlacar || 0,
+        pontosPenaltis: existingPrediction?.pontosPenaltis || 0,
         pontosGols: existingPrediction?.pontosGols || 0,
         pontosClassificado: existingPrediction?.pontosClassificado || 0,
         pontosExtras: existingPrediction?.pontosExtras || 0,

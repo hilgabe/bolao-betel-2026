@@ -93,12 +93,15 @@ Em `/admin/jogo/:matchId`, atualize o resultado oficial uma vez por jogo. A tabe
 
 - Classificado correto: 1 ponto.
 - Placar exato do jogo antes dos penaltis: 2 pontos.
+- Placar exato dos penaltis: 1 ponto, somente quando o jogo terminar empatado.
 - Gols dos jogadores: 1 ponto por gol previsto corretamente para cada jogador.
 - Extras: campo manual do admin para ajustes excepcionais.
 
 Exemplo: se Vini Jr fez 2 gols e o participante escreveu `Vini Jr 2`, recebe 2 pontos de gols. Se escreveu apenas `Vini Jr`, recebe 1 ponto. Se escreveu `Vini Jr 3`, recebe no maximo 2 pontos, porque o limite e o numero real de gols.
 
 Se o placar terminar empatado, o participante e o admin precisam informar os penaltis. O classificado e calculado pelos penaltis, e esse acerto entra na regra de classificado correto.
+
+Placar do jogo e placar dos penaltis pontuam de forma independente. Exemplo: se o jogo foi `1 x 1` e os penaltis foram `4 x 2`, quem colocou `1 x 1` mas errou os penaltis ganha os 2 pontos do placar. Quem errou o placar do jogo, mas colocou os penaltis `4 x 2`, ganha 1 ponto pelos penaltis.
 
 ## Regras do Firestore para comecar
 

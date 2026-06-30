@@ -21,6 +21,7 @@ function normalizePrediction(id: string, data: Partial<Prediction>): Prediction 
     classificado: data.classificado || '',
     jogadoresGolTexto: data.jogadoresGolTexto || '',
     pontosPlacar: Number(data.pontosPlacar ?? emptyScores.pontosPlacar),
+    pontosPenaltis: Number(data.pontosPenaltis ?? emptyScores.pontosPenaltis),
     pontosGols: Number(data.pontosGols ?? emptyScores.pontosGols),
     pontosClassificado: Number(data.pontosClassificado ?? emptyScores.pontosClassificado),
     pontosExtras: Number(data.pontosExtras ?? emptyScores.pontosExtras),

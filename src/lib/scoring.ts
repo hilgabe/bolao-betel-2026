@@ -3,12 +3,14 @@ import type { Match, Prediction, ScoreFields } from '../types'
 export const scoringRules = {
   classified: 1,
   exactScore: 2,
+  exactPenalties: 1,
   goalOccurrence: 1,
 }
 
 export const scoreFieldLabels: Array<{ field: keyof ScoreFields; label: string }> = [
   { field: 'pontosClassificado', label: 'Classificado' },
   { field: 'pontosPlacar', label: 'Placar exato' },
+  { field: 'pontosPenaltis', label: 'Penaltis' },
   { field: 'pontosGols', label: 'Gols' },
   { field: 'pontosExtras', label: 'Extras' },
 ]
@@ -16,6 +18,7 @@ export const scoreFieldLabels: Array<{ field: keyof ScoreFields; label: string }
 export function emptyScoreFields(): ScoreFields {
   return {
     pontosPlacar: 0,
+    pontosPenaltis: 0,
     pontosGols: 0,
     pontosClassificado: 0,
     pontosExtras: 0,
@@ -78,7 +81,7 @@ export function calculateGoalScorerPoints(predictedText: string, actualText: str
 
 export function calculateAutomaticPredictionScores(
   prediction: Prediction,
-  match: Pick<Match, 'scoreA' | 'scoreB' | 'winner' | 'scorersTexto'>,
+  match: Pick<Match, 'scoreA' | 'scoreB' | 'penaltiesA' | 'penaltiesB' | 'winner' | 'scorersTexto'>,
 ): ScoreFields {
   const exactScore =
     match.scoreA !== null &&
@@ -87,11 +90,25 @@ export function calculateAutomaticPredictionScores(
     match.scoreB !== undefined &&
     prediction.palpiteA === match.scoreA &&
     prediction.palpiteB === match.scoreB
+  const exactPenalties =
+    match.scoreA === match.scoreB &&
+    prediction.palpiteA === prediction.palpiteB &&
+    match.penaltiesA !== null &&
+    match.penaltiesA !== undefined &&
+    match.penaltiesB !== null &&
+    match.penaltiesB !== undefined &&
+    prediction.palpitePenaltisA !== null &&
+    prediction.palpitePenaltisA !== undefined &&
+    prediction.palpitePenaltisB !== null &&
+    prediction.palpitePenaltisB !== undefined &&
+    prediction.palpitePenaltisA === match.penaltiesA &&
+    prediction.palpitePenaltisB === match.penaltiesB
 
   return {
     pontosClassificado:
       match.winner && prediction.classificado === match.winner ? scoringRules.classified : 0,
     pontosPlacar: exactScore ? scoringRules.exactScore : 0,
+    pontosPenaltis: exactPenalties ? scoringRules.exactPenalties : 0,
     pontosGols: calculateGoalScorerPoints(
       prediction.jogadoresGolTexto || '',
       match.scorersTexto || '',

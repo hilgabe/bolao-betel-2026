@@ -36,6 +36,7 @@ export interface Match {
 
 export interface ScoreFields {
   pontosPlacar: number
+  pontosPenaltis: number
   pontosGols: number
   pontosClassificado: number
   pontosExtras: number
