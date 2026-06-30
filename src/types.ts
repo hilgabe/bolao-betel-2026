@@ -101,12 +101,7 @@ export interface MatchEvent {
   createdAt?: unknown
 }
 
-export type AppNotificationType =
-  | 'goal-hit'
-  | 'goal-miss'
-  | 'rank-up'
-  | 'prediction-reminder'
-  | 'broadcast'
+export type AppNotificationType = 'goal-hit' | 'goal-miss' | 'rank-up' | 'prediction-reminder'
 
 export interface AppNotification {
   id: string
@@ -116,13 +111,4 @@ export interface AppNotification {
   createdAtMs: number
   read: boolean
   link?: string
-}
-
-export interface BroadcastNotification {
-  id: string
-  title: string
-  body: string
-  createdAtMs: number
-  link?: string
-  createdAt?: unknown
 }
