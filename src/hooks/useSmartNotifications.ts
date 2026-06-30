@@ -6,10 +6,12 @@ import { useMatchEvents } from './useMatchEvents'
 import { useUserPredictions } from './usePredictions'
 import { useRanking } from './useRanking'
 import { scorerNamesMatch } from '../lib/scoring'
+import { useBroadcastNotifications } from './useBroadcastNotifications'
 import type { AppNotification, AppUser, Match, MatchEvent, Prediction } from '../types'
 
 const maxStoredNotifications = 50
 const liveEventWindowMs = 12 * 60 * 60 * 1000
+const broadcastWindowMs = 48 * 60 * 60 * 1000
 
 function storageKey(userId: string, suffix: string) {
   return `bolao-betel-${suffix}-${userId}`
@@ -105,6 +107,7 @@ export function useSmartNotifications() {
   const { predictions } = useUserPredictions(profile?.uid)
   const { ranking } = useRanking()
   const { events } = useMatchEvents()
+  const { broadcasts } = useBroadcastNotifications()
   const navigate = useNavigate()
   const [notifications, setNotifications] = useState<AppNotification[]>([])
   const [permission, setPermission] = useState(browserNotificationPermission())
@@ -179,6 +182,34 @@ export function useSmartNotifications() {
 
     writeJson(seenKey, [...nextSeenEvents].slice(-200))
   }, [events, predictions, profile?.uid, pushNotification])
+
+  useEffect(() => {
+    if (!profile?.uid || broadcasts.length === 0) {
+      return
+    }
+
+    const seenKey = storageKey(profile.uid, 'seen-broadcasts')
+    const seenBroadcasts = new Set(readJson<string[]>(seenKey, []))
+    const recentCutoff = Date.now() - broadcastWindowMs
+    const nextSeenBroadcasts = new Set(seenBroadcasts)
+
+    broadcasts
+      .filter((broadcast) => broadcast.createdAtMs >= recentCutoff && !seenBroadcasts.has(broadcast.id))
+      .forEach((broadcast) => {
+        pushNotification({
+          id: `broadcast-${broadcast.id}`,
+          type: 'broadcast',
+          title: broadcast.title,
+          body: broadcast.body,
+          createdAtMs: broadcast.createdAtMs || Date.now(),
+          read: false,
+          link: broadcast.link || '/jogos',
+        })
+        nextSeenBroadcasts.add(broadcast.id)
+      })
+
+    writeJson(seenKey, [...nextSeenBroadcasts].slice(-200))
+  }, [broadcasts, profile?.uid, pushNotification])
 
   useEffect(() => {
     if (!profile?.uid || matches.length === 0) {

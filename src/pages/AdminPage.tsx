@@ -1,9 +1,10 @@
-import { CalendarDays, Database, Search } from 'lucide-react'
+import { BellRing, CalendarDays, Database, Search } from 'lucide-react'
 import { useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { TeamLabel } from '../components/TeamLabel'
+import { sendBroadcastNotification } from '../hooks/useBroadcastNotifications'
 import { seedInitialMatches, useMatches } from '../hooks/useMatches'
-import { formatDateBR } from '../lib/time'
+import { formatDateBR, getSaoPauloToday } from '../lib/time'
 
 export function AdminPage() {
   const { matches, loading, error, usingInitialData } = useMatches()
@@ -11,6 +12,9 @@ export function AdminPage() {
   const [query, setQuery] = useState('')
   const [seeding, setSeeding] = useState(false)
   const [seedMessage, setSeedMessage] = useState<string | null>(null)
+  const [sendingReminder, setSendingReminder] = useState(false)
+  const [reminderMessage, setReminderMessage] = useState<string | null>(null)
+  const today = getSaoPauloToday()
 
   const filteredMatches = useMemo(() => {
     return matches.filter((match) => {
@@ -31,6 +35,36 @@ export function AdminPage() {
       setSeedMessage(seedError instanceof Error ? seedError.message : 'Falha ao gravar jogos.')
     } finally {
       setSeeding(false)
+    }
+  }
+
+  async function handleSendTodayReminder() {
+    const todayMatches = matches.filter((match) => match.date === today && match.status !== 'finished')
+    setSendingReminder(true)
+    setReminderMessage(null)
+
+    try {
+      if (todayMatches.length === 0) {
+        setReminderMessage('Nao encontrei jogos pendentes para hoje.')
+        return
+      }
+
+      const matchList = todayMatches
+        .map((match) => `${match.codigo}: ${match.teamA} x ${match.teamB}`)
+        .join(' | ')
+
+      await sendBroadcastNotification({
+        title: 'Bora palpitar, profeta!',
+        body: `Hoje tem jogo no Bolao Betel! Corre no app e deixa teu palpite antes da bola rolar. ${matchList} ⚽🔥`,
+        link: '/jogos',
+      })
+      setReminderMessage(`Lembrete disparado para ${todayMatches.length} jogo(s) de hoje.`)
+    } catch (sendError) {
+      setReminderMessage(
+        sendError instanceof Error ? sendError.message : 'Nao foi possivel disparar o lembrete.',
+      )
+    } finally {
+      setSendingReminder(false)
     }
   }
 
@@ -83,6 +117,30 @@ export function AdminPage() {
           </p>
         ) : null}
         {seedMessage ? <p className="mt-3 text-sm font-bold text-slate-700">{seedMessage}</p> : null}
+      </section>
+
+      <section className="panel mb-5 p-4">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div>
+            <p className="text-sm font-black uppercase text-betel-blue">Notificacao teste</p>
+            <h2 className="mt-1 text-xl font-black text-slate-950">Lembrete dos jogos de hoje</h2>
+            <p className="mt-1 text-sm text-slate-600">
+              Dispara um aviso jovem e direto para a galera abrir o app e palpitar.
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={handleSendTodayReminder}
+            className="btn-primary"
+            disabled={sendingReminder}
+          >
+            <BellRing className="h-4 w-4" aria-hidden="true" />
+            Disparar lembrete
+          </button>
+        </div>
+        {reminderMessage ? (
+          <p className="mt-3 text-sm font-bold text-slate-700">{reminderMessage}</p>
+        ) : null}
       </section>
 
       {loading ? <p className="text-sm font-bold text-slate-600">Carregando jogos...</p> : null}
