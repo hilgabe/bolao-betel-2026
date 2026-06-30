@@ -1,4 +1,5 @@
 import { CheckCircle2, Clock } from 'lucide-react'
+import { useMemo } from 'react'
 import { TeamLabel } from '../components/TeamLabel'
 import { useMatches } from '../hooks/useMatches'
 import { formatMatchScore } from '../lib/matchResult'
@@ -22,8 +23,73 @@ function hasResult(match: Match) {
   )
 }
 
-function MatchBracketCard({ match }: { match: Match }) {
+function sourceMatchFromCode(rawCode: string, matchesByCode: Map<string, Match>) {
+  const directMatch = matchesByCode.get(`J${rawCode}`)
+  if (directMatch) {
+    return directMatch
+  }
+
+  if (rawCode === '101') {
+    return matchesByCode.get('J01')
+  }
+
+  if (rawCode === '102') {
+    return matchesByCode.get('J02')
+  }
+
+  return undefined
+}
+
+function resolveTeamSlot(
+  team: string,
+  matchesByCode: Map<string, Match>,
+  visited = new Set<string>(),
+): string {
+  const winnerMatch = /^W(\d+)$/.exec(team)
+  if (winnerMatch) {
+    const sourceMatch = sourceMatchFromCode(winnerMatch[1], matchesByCode)
+    if (!sourceMatch?.winner) {
+      return team
+    }
+
+    return sourceMatch.winner
+  }
+
+  const runnerUpMatch = /^RU(\d+)$/.exec(team)
+  if (runnerUpMatch) {
+    const sourceMatch = sourceMatchFromCode(runnerUpMatch[1], matchesByCode)
+    if (!sourceMatch?.winner || visited.has(sourceMatch.codigo)) {
+      return team
+    }
+
+    visited.add(sourceMatch.codigo)
+    const sourceTeamA = resolveTeamSlot(sourceMatch.teamA, matchesByCode, visited)
+    const sourceTeamB = resolveTeamSlot(sourceMatch.teamB, matchesByCode, visited)
+
+    if (sourceMatch.winner === sourceTeamA) {
+      return sourceTeamB
+    }
+
+    if (sourceMatch.winner === sourceTeamB) {
+      return sourceTeamA
+    }
+  }
+
+  return team
+}
+
+function MatchBracketCard({
+  match,
+  matchesByCode,
+}: {
+  match: Match
+  matchesByCode: Map<string, Match>
+}) {
   const resultReady = hasResult(match)
+  const teamA = resolveTeamSlot(match.teamA, matchesByCode)
+  const teamB = resolveTeamSlot(match.teamB, matchesByCode)
+  const fallbackFlagA = teamA === match.teamA ? match.flagA : ''
+  const fallbackFlagB = teamB === match.teamB ? match.flagB : ''
 
   return (
     <article className="rounded-lg border border-slate-200 bg-white p-3 shadow-sm">
@@ -50,10 +116,10 @@ function MatchBracketCard({ match }: { match: Match }) {
         <div
           className={[
             'flex items-center justify-between gap-3 rounded-lg px-2 py-2',
-            match.winner === match.teamA ? 'bg-green-50' : 'bg-slate-50',
+            match.winner === teamA ? 'bg-green-50' : 'bg-slate-50',
           ].join(' ')}
         >
-          <TeamLabel team={match.teamA} fallbackFlag={match.flagA} />
+          <TeamLabel team={teamA} fallbackFlag={fallbackFlagA} />
           <span className="text-xl font-black text-slate-950">
             {resultReady ? match.scoreA : '-'}
           </span>
@@ -61,10 +127,10 @@ function MatchBracketCard({ match }: { match: Match }) {
         <div
           className={[
             'flex items-center justify-between gap-3 rounded-lg px-2 py-2',
-            match.winner === match.teamB ? 'bg-green-50' : 'bg-slate-50',
+            match.winner === teamB ? 'bg-green-50' : 'bg-slate-50',
           ].join(' ')}
         >
-          <TeamLabel team={match.teamB} fallbackFlag={match.flagB} />
+          <TeamLabel team={teamB} fallbackFlag={fallbackFlagB} />
           <span className="text-xl font-black text-slate-950">
             {resultReady ? match.scoreB : '-'}
           </span>
@@ -86,6 +152,10 @@ function MatchBracketCard({ match }: { match: Match }) {
 
 export function TablePage() {
   const { matches, loading, error } = useMatches()
+  const matchesByCode = useMemo(
+    () => new Map(matches.map((match) => [match.codigo, match])),
+    [matches],
+  )
 
   const groupedMatches = phaseOrder
     .map((phase) => ({
@@ -119,7 +189,7 @@ export function TablePage() {
               </h2>
               <div className="grid gap-3">
                 {group.matches.map((match) => (
-                  <MatchBracketCard key={match.id} match={match} />
+                  <MatchBracketCard key={match.id} match={match} matchesByCode={matchesByCode} />
                 ))}
               </div>
             </section>
