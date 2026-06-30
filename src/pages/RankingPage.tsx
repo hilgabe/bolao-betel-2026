@@ -69,7 +69,7 @@ export function RankingPage() {
           const isExpanded = Boolean(expandedEntries[entry.uid])
           return (
             <article key={entry.uid} className="panel p-4">
-              <div className="flex items-center gap-3">
+              <div className="grid grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-3">
                 <div className="relative shrink-0">
                   {avatarFor(entry) ? (
                     <img
@@ -108,7 +108,7 @@ export function RankingPage() {
                   <button
                     type="button"
                     onClick={() => toggleEntry(entry.uid)}
-                    className="mt-2 inline-flex items-center gap-1 rounded-lg px-2 py-1 text-xs font-black uppercase text-betel-blue transition hover:bg-blue-50"
+                    className="mt-2 inline-flex max-w-full items-center gap-1 rounded-lg px-2 py-1 text-left text-xs font-black uppercase text-betel-blue transition hover:bg-blue-50"
                   >
                     {isExpanded ? (
                       <ChevronDown className="h-4 w-4" aria-hidden="true" />
@@ -118,7 +118,7 @@ export function RankingPage() {
                     {isExpanded ? 'Ocultar pontuacao' : 'Ver pontuacao'}
                   </button>
                 </div>
-                <div className="text-right">
+                <div className="shrink-0 rounded-lg bg-slate-50 px-3 py-2 text-right">
                   <p className="text-2xl font-black text-slate-950">{entry.totalPontos}</p>
                   <p className="text-xs font-bold uppercase text-slate-500">pontos</p>
                 </div>
