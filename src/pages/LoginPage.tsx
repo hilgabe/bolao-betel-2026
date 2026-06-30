@@ -62,7 +62,9 @@ export function LoginPage() {
       <div className="pointer-events-none absolute bottom-0 left-0 h-24 w-48 rotate-12 bg-betel-green" />
       <section className="panel relative z-10 w-full max-w-md p-5 sm:p-6">
         <div className="mb-6">
-          <img src="/logo-betel.svg" alt="" className="h-14 w-14 rounded-xl shadow-sm" />
+          <span className="grid h-12 w-12 place-items-center rounded-lg bg-betel-ink text-base font-black text-white">
+            BB
+          </span>
           <h1 className="mt-4 text-3xl font-black text-slate-950">Bolão Betel 2026</h1>
           <p className="mt-2 text-sm text-slate-600">
             Entre com seu nome e uma senha simples para guardar seus palpites.

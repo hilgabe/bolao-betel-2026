@@ -50,11 +50,9 @@ export function AppShell() {
             className="flex min-w-0 items-center gap-3 text-left"
             aria-label="Ir para home"
           >
-            <img
-              src="/logo-betel.svg"
-              alt=""
-              className="h-10 w-10 shrink-0 rounded-lg shadow-sm"
-            />
+            <span className="grid h-10 w-10 shrink-0 place-items-center rounded-lg bg-betel-ink text-sm font-black text-white">
+              BB
+            </span>
             <span className="min-w-0">
               <span className="block truncate text-base font-black text-slate-950">
                 Bolao Betel 2026
