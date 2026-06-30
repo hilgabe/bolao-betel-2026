@@ -390,6 +390,10 @@ function AdminResultForm({
             {scoringRules.exactScore} pontos. Gols: {scoringRules.goalOccurrence} ponto por gol
             correto de cada jogador.
           </p>
+          <p className="mt-1">
+            Nos gols, o sistema aceita apelidos e pequenos erros: Vini, Vinicius, Vini Jr ou
+            Vini Malvadeza contam como o mesmo jogador quando o nome for compativel.
+          </p>
         </div>
 
         {message ? <p className="text-sm font-bold text-slate-700">{message}</p> : null}
