@@ -9,6 +9,7 @@ import {
 import { doc, getDoc, serverTimestamp, setDoc } from 'firebase/firestore'
 import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react'
 import { auth, db, firebaseConfigured } from '../lib/firebase'
+import { resolveUserRole } from '../lib/admin'
 import { authEmailFromParticipantId, participantIdFromName } from '../lib/participants'
 import type { AppUser } from '../types'
 import { AuthContext } from './auth'
@@ -44,12 +45,17 @@ function clearStoredParticipant() {
 }
 
 function profileFromUser(user: User, participant?: { id: string; nome: string }): AppUser {
-  return {
+  const profile = {
     uid: participant?.id || user.uid,
     nome: participant?.nome || user.displayName || 'Participante',
     email: participant ? authEmailFromParticipantId(participant.id) : user.email || '',
-    role: 'user',
+    role: 'user' as const,
     totalPontos: 0,
+  }
+
+  return {
+    ...profile,
+    role: resolveUserRole(profile),
   }
 }
 
@@ -63,13 +69,21 @@ async function upsertParticipantProfile(user: User, participant: { id: string; n
 
   if (snapshot.exists()) {
     const existing = snapshot.data() as Partial<AppUser>
+    const role = resolveUserRole({
+      ...profileFromUser(user, participant),
+      ...existing,
+      uid: participant.id,
+      nome: participant.nome,
+      email: authEmailFromParticipantId(participant.id),
+    })
+
     await setDoc(
       ref,
       {
         uid: participant.id,
         nome: participant.nome,
         email: authEmailFromParticipantId(participant.id),
-        role: existing.role || 'user',
+        role,
         totalPontos: Number(existing.totalPontos || 0),
         authUid: user.uid,
         updatedAt: serverTimestamp(),
@@ -83,6 +97,7 @@ async function upsertParticipantProfile(user: User, participant: { id: string; n
       uid: participant.id,
       nome: participant.nome,
       email: authEmailFromParticipantId(participant.id),
+      role,
       totalPontos: Number(existing.totalPontos || 0),
     } as AppUser
   }
@@ -110,11 +125,16 @@ async function loadProfile(user: User) {
   const ref = doc(db, 'users', storedParticipant.id)
   const snapshot = await getDoc(ref)
   if (snapshot.exists()) {
-    return {
+    const profile = {
       ...profileFromUser(user, storedParticipant),
       ...snapshot.data(),
       uid: storedParticipant.id,
     } as AppUser
+
+    return {
+      ...profile,
+      role: resolveUserRole(profile),
+    }
   }
 
   return upsertParticipantProfile(user, storedParticipant)

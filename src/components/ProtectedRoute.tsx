@@ -1,5 +1,6 @@
 import { Navigate, Outlet, useLocation } from 'react-router-dom'
 import { useAuth } from '../context/auth'
+import { canAccessAdmin } from '../lib/admin'
 
 export function ProtectedRoute() {
   const { firebaseUser, loading } = useAuth()
@@ -25,7 +26,7 @@ export function ProtectedRoute() {
 export function AdminRoute() {
   const { profile } = useAuth()
 
-  if (profile?.role !== 'admin') {
+  if (!canAccessAdmin(profile)) {
     return <Navigate to="/home" replace />
   }
 

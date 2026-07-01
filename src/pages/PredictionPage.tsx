@@ -6,6 +6,7 @@ import { TeamLabel } from '../components/TeamLabel'
 import { useAuth } from '../context/auth'
 import { useMatches } from '../hooks/useMatches'
 import { useMatchPredictions, useUserPredictions } from '../hooks/usePredictions'
+import { canAccessAdmin } from '../lib/admin'
 import { db } from '../lib/firebase'
 import { formatPredictionScore, numberFromForm, winnerFromScores } from '../lib/matchResult'
 import { formatMatchDateTime, getMatchAvailability } from '../lib/time'
@@ -138,7 +139,7 @@ export function PredictionPage() {
       })
     : ''
   const showPublicPredictions =
-    Boolean(match && availability?.state === 'closed') || profile?.role === 'admin'
+    Boolean(match && availability?.state === 'closed') || canAccessAdmin(profile)
 
   if (!match) {
     return (

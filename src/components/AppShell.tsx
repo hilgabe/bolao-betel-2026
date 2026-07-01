@@ -10,6 +10,7 @@ import {
 } from 'lucide-react'
 import { NavLink, Outlet, useNavigate } from 'react-router-dom'
 import { useAuth } from '../context/auth'
+import { canAccessAdmin } from '../lib/admin'
 
 const navItems = [
   { to: '/home', label: 'Home', icon: Home },
@@ -45,7 +46,7 @@ function mobileNavClass(isActive: boolean) {
 export function AppShell() {
   const { logout, profile } = useAuth()
   const navigate = useNavigate()
-  const visibleNavItems = profile?.role === 'admin' ? [...navItems, ...adminNavItems] : navItems
+  const visibleNavItems = canAccessAdmin(profile) ? [...navItems, ...adminNavItems] : navItems
 
   async function handleLogout() {
     await logout()
