@@ -1,5 +1,6 @@
 import {
   BookOpen,
+  ChartNoAxesCombined,
   CalendarDays,
   ClipboardList,
   Home,
@@ -14,6 +15,7 @@ import { useAuth } from '../context/auth'
 const navItems = [
   { to: '/home', label: 'Home', icon: Home },
   { to: '/jogos', label: 'Jogos', icon: CalendarDays },
+  { to: '/painel', label: 'Painel', icon: ChartNoAxesCombined },
   { to: '/tabela', label: 'Tabela', icon: Table2 },
   { to: '/regras', label: 'Regras', icon: BookOpen },
   { to: '/ranking', label: 'Ranking', icon: Trophy },

@@ -7,6 +7,7 @@ import { HomePage } from './pages/HomePage'
 import { LoginPage } from './pages/LoginPage'
 import { MatchesPage } from './pages/MatchesPage'
 import { NotFoundPage } from './pages/NotFoundPage'
+import { PanelPage } from './pages/PanelPage'
 import { PredictionPage } from './pages/PredictionPage'
 import { RankingPage } from './pages/RankingPage'
 import { RulesPage } from './pages/RulesPage'
@@ -22,6 +23,7 @@ function App() {
             <Route path="/" element={<Navigate to="/home" replace />} />
             <Route path="/home" element={<HomePage />} />
             <Route path="/jogos" element={<MatchesPage />} />
+            <Route path="/painel" element={<PanelPage />} />
             <Route path="/palpite/:matchId" element={<PredictionPage />} />
             <Route path="/tabela" element={<TablePage />} />
             <Route path="/regras" element={<RulesPage />} />
