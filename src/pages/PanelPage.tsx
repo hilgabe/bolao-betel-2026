@@ -1,4 +1,14 @@
-import { Activity, BarChart3, Filter, Flame, Search, Target, Trophy, Users } from 'lucide-react'
+import {
+  AlertTriangle,
+  BarChart3,
+  Filter,
+  LineChart,
+  PieChart,
+  Search,
+  Target,
+  Trophy,
+  Users,
+} from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
 import { useMemo, useState } from 'react'
 import { useMatches } from '../hooks/useMatches'
@@ -32,6 +42,17 @@ interface UserPanelStats {
   goalHits: number
 }
 
+interface ChartSlice {
+  label: string
+  value: number
+  color: string
+}
+
+interface LinePoint {
+  label: string
+  value: number
+}
+
 function percent(value: number, total: number) {
   if (total === 0) {
     return '0%'
@@ -62,8 +83,30 @@ function predictionHasSearch(prediction: Prediction, query: string) {
     return true
   }
 
-  const text = `${prediction.userName} ${prediction.matchCode} ${prediction.teamA} ${prediction.teamB}`.toLowerCase()
+  const text =
+    `${prediction.userName} ${prediction.matchCode} ${prediction.teamA} ${prediction.teamB}`.toLowerCase()
   return text.includes(query.toLowerCase())
+}
+
+function polarToCartesian(center: number, radius: number, angle: number) {
+  const radians = ((angle - 90) * Math.PI) / 180
+  return {
+    x: center + radius * Math.cos(radians),
+    y: center + radius * Math.sin(radians),
+  }
+}
+
+function describeArc(center: number, radius: number, startAngle: number, endAngle: number) {
+  const start = polarToCartesian(center, radius, endAngle)
+  const end = polarToCartesian(center, radius, startAngle)
+  const largeArc = endAngle - startAngle <= 180 ? '0' : '1'
+
+  return [
+    `M ${center} ${center}`,
+    `L ${start.x} ${start.y}`,
+    `A ${radius} ${radius} 0 ${largeArc} 0 ${end.x} ${end.y}`,
+    'Z',
+  ].join(' ')
 }
 
 function MetricCard({
@@ -89,12 +132,12 @@ function MetricCard({
   return (
     <article className="panel p-4">
       <div className="flex items-start justify-between gap-3">
-        <div>
+        <div className="min-w-0">
           <p className="text-sm font-bold text-slate-500">{title}</p>
           <p className="mt-2 text-3xl font-black text-slate-950">{value}</p>
           <p className="mt-1 text-sm text-slate-600">{detail}</p>
         </div>
-        <span className={`grid h-10 w-10 place-items-center rounded-lg ${colors[tone]}`}>
+        <span className={`grid h-10 w-10 shrink-0 place-items-center rounded-lg ${colors[tone]}`}>
           <Icon className="h-5 w-5" aria-hidden="true" />
         </span>
       </div>
@@ -106,9 +149,153 @@ function EmptyPanel({ children }: { children: string }) {
   return <div className="rounded-lg bg-slate-50 p-4 text-sm text-slate-600">{children}</div>
 }
 
+function PieChartCard({ slices, total }: { slices: ChartSlice[]; total: number }) {
+  let currentAngle = 0
+  const visibleSlices = slices.filter((slice) => slice.value > 0)
+
+  return (
+    <article className="panel p-4">
+      <div className="mb-3 flex items-center justify-between gap-3">
+        <div>
+          <p className="text-sm font-bold uppercase text-betel-blue">Composicao</p>
+          <h2 className="text-xl font-black text-slate-950">De onde vieram os pontos</h2>
+        </div>
+        <PieChart className="h-5 w-5 text-slate-400" aria-hidden="true" />
+      </div>
+
+      {total > 0 ? (
+        <div className="grid gap-4 md:grid-cols-[180px_1fr] md:items-center">
+          <svg viewBox="0 0 180 180" className="mx-auto h-44 w-44" role="img" aria-label="Grafico de pizza">
+            <circle cx="90" cy="90" r="78" fill="#f1f5f9" />
+            {visibleSlices.map((slice) => {
+              const sliceAngle = (slice.value / total) * 360
+              const path = describeArc(90, 78, currentAngle, currentAngle + sliceAngle)
+              currentAngle += sliceAngle
+              return <path key={slice.label} d={path} fill={slice.color} />
+            })}
+            <circle cx="90" cy="90" r="44" fill="white" />
+            <text x="90" y="86" textAnchor="middle" className="fill-slate-950 text-xl font-black">
+              {total}
+            </text>
+            <text x="90" y="104" textAnchor="middle" className="fill-slate-500 text-xs font-bold">
+              pontos
+            </text>
+          </svg>
+
+          <div className="grid gap-2">
+            {visibleSlices.map((slice) => (
+              <div key={slice.label} className="flex items-center justify-between gap-3 rounded-lg bg-slate-50 p-3">
+                <span className="flex items-center gap-2 text-sm font-bold text-slate-700">
+                  <span className="h-3 w-3 rounded-sm" style={{ backgroundColor: slice.color }} />
+                  {slice.label}
+                </span>
+                <span className="text-sm font-black text-slate-950">
+                  {slice.value} ({percent(slice.value, total)})
+                </span>
+              </div>
+            ))}
+          </div>
+        </div>
+      ) : (
+        <EmptyPanel>Ainda nao ha pontos no recorte filtrado.</EmptyPanel>
+      )}
+    </article>
+  )
+}
+
+function PeakLineChart({ points }: { points: LinePoint[] }) {
+  const chartWidth = 620
+  const chartHeight = 220
+  const paddingX = 34
+  const paddingTop = 24
+  const paddingBottom = 40
+  const maxValue = Math.max(...points.map((point) => point.value), 0)
+  const innerWidth = chartWidth - paddingX * 2
+  const innerHeight = chartHeight - paddingTop - paddingBottom
+  const coordinates = points.map((point, index) => {
+    const x = points.length === 1 ? chartWidth / 2 : paddingX + (index / (points.length - 1)) * innerWidth
+    const y =
+      maxValue === 0
+        ? paddingTop + innerHeight
+        : paddingTop + innerHeight - (point.value / maxValue) * innerHeight
+    return { ...point, x, y }
+  })
+  const path = coordinates.map((point, index) => `${index === 0 ? 'M' : 'L'} ${point.x} ${point.y}`).join(' ')
+  const areaPath = coordinates.length
+    ? `${path} L ${coordinates[coordinates.length - 1].x} ${paddingTop + innerHeight} L ${coordinates[0].x} ${
+        paddingTop + innerHeight
+      } Z`
+    : ''
+
+  return (
+    <article className="panel p-4">
+      <div className="mb-3 flex items-center justify-between gap-3">
+        <div>
+          <p className="text-sm font-bold uppercase text-betel-blue">Picos</p>
+          <h2 className="text-xl font-black text-slate-950">Pontos gerados por jogo</h2>
+          <p className="mt-1 text-sm text-slate-600">
+            Mostra quais partidas mexeram mais no ranking.
+          </p>
+        </div>
+        <LineChart className="h-5 w-5 text-slate-400" aria-hidden="true" />
+      </div>
+
+      {points.length > 0 ? (
+        <div className="overflow-x-auto">
+          <svg viewBox={`0 0 ${chartWidth} ${chartHeight}`} className="min-w-[620px]">
+            <line
+              x1={paddingX}
+              y1={paddingTop + innerHeight}
+              x2={chartWidth - paddingX}
+              y2={paddingTop + innerHeight}
+              stroke="#cbd5e1"
+              strokeWidth="2"
+            />
+            {[0.25, 0.5, 0.75, 1].map((step) => {
+              const y = paddingTop + innerHeight - step * innerHeight
+              return (
+                <line
+                  key={step}
+                  x1={paddingX}
+                  y1={y}
+                  x2={chartWidth - paddingX}
+                  y2={y}
+                  stroke="#e2e8f0"
+                  strokeWidth="1"
+                />
+              )
+            })}
+            {areaPath ? <path d={areaPath} fill="rgba(17, 60, 252, .10)" /> : null}
+            {path ? <path d={path} fill="none" stroke="#113CFC" strokeWidth="4" strokeLinecap="round" /> : null}
+            {coordinates.map((point) => (
+              <g key={point.label}>
+                <circle cx={point.x} cy={point.y} r="5" fill="#113CFC" />
+                <text x={point.x} y={point.y - 10} textAnchor="middle" className="fill-slate-950 text-xs font-black">
+                  {point.value}
+                </text>
+                <text
+                  x={point.x}
+                  y={chartHeight - 16}
+                  textAnchor="middle"
+                  className="fill-slate-500 text-xs font-bold"
+                >
+                  {point.label}
+                </text>
+              </g>
+            ))}
+          </svg>
+        </div>
+      ) : (
+        <EmptyPanel>Ainda nao ha jogos pontuados neste recorte.</EmptyPanel>
+      )}
+    </article>
+  )
+}
+
 function MatchStatsCard({ item, maxPoints }: { item: MatchPanelStats; maxPoints: number }) {
   const hitTotal = item.classifiedHits + item.exactScoreHits + item.penaltyHits + item.goalHits
   const width = maxPoints > 0 ? Math.max(8, Math.round((item.totalPoints / maxPoints) * 100)) : 0
+  const assertiveness = percent(item.classifiedHits, Math.max(1, item.scored))
 
   return (
     <article className="rounded-lg border border-slate-200 bg-white p-3">
@@ -139,8 +326,8 @@ function MatchStatsCard({ item, maxPoints }: { item: MatchPanelStats; maxPoints:
 
       <div className="mt-3 grid grid-cols-2 gap-2 text-xs font-bold text-slate-600 sm:grid-cols-4">
         <span>{item.predictions} palpites</span>
-        <span>{item.classifiedHits} classif.</span>
-        <span>{item.exactScoreHits} placares</span>
+        <span>{item.scored} pontuados</span>
+        <span>{assertiveness} classif.</span>
         <span>{hitTotal} acertos</span>
       </div>
     </article>
@@ -277,13 +464,57 @@ export function PanelPage() {
   const classifiedHits = filteredPredictions.filter((prediction) => prediction.pontosClassificado > 0).length
   const goalHits = filteredPredictions.filter((prediction) => prediction.pontosGols > 0).length
   const totalPoints = filteredPredictions.reduce((sum, prediction) => sum + prediction.totalPontos, 0)
-  const finishedMatches = filteredMatches.filter(hasOfficialResult)
+  const expectedPredictions = ranking.length * filteredMatches.length
   const matchesWithoutScore = filteredMatches.filter(
     (match) => hasOfficialResult(match) && !predictions.some((prediction) => prediction.matchId === match.id && prediction.pontuado),
   )
+  const pointSlices: ChartSlice[] = [
+    {
+      label: 'Classificado',
+      value: filteredPredictions.reduce((sum, prediction) => sum + prediction.pontosClassificado, 0),
+      color: '#113CFC',
+    },
+    {
+      label: 'Placar exato',
+      value: filteredPredictions.reduce((sum, prediction) => sum + prediction.pontosPlacar, 0),
+      color: '#F7D002',
+    },
+    {
+      label: 'Penaltis',
+      value: filteredPredictions.reduce((sum, prediction) => sum + prediction.pontosPenaltis, 0),
+      color: '#7C2DFF',
+    },
+    {
+      label: 'Gols',
+      value: filteredPredictions.reduce((sum, prediction) => sum + prediction.pontosGols, 0),
+      color: '#00A878',
+    },
+    {
+      label: 'Extras',
+      value: filteredPredictions.reduce((sum, prediction) => sum + prediction.pontosExtras, 0),
+      color: '#FF2E1F',
+    },
+  ]
+  const linePoints = matchStats
+    .slice()
+    .sort((left, right) => {
+      const leftDate = `${left.match.date} ${left.match.time} ${left.match.codigo}`
+      const rightDate = `${right.match.date} ${right.match.time} ${right.match.codigo}`
+      return leftDate.localeCompare(rightDate)
+    })
+    .filter((item) => item.scored > 0 || item.totalPoints > 0)
+    .map((item) => ({
+      label: item.match.codigo,
+      value: item.totalPoints,
+    }))
   const maxMatchPoints = Math.max(...matchStats.map((item) => item.totalPoints), 0)
   const maxUserPoints = Math.max(...userStats.map((item) => item.points), 0)
   const topRanking = ranking.slice(0, 3)
+  const mostPredictableMatch = matchStats.find((item) => item.scored > 0 && item.classifiedHits > 0)
+  const hardestMatch = matchStats
+    .slice()
+    .reverse()
+    .find((item) => item.scored > 0 && item.totalPoints === 0)
   const loading = loadingMatches || loadingPredictions || loadingRanking
   const error = matchesError || predictionsError || rankingError
 
@@ -293,7 +524,7 @@ export function PanelPage() {
         <p className="text-sm font-bold uppercase text-betel-blue">Gestao a vista</p>
         <h1 className="mt-1 text-3xl font-black text-slate-950">Painel do bolao</h1>
         <p className="mt-2 text-sm text-slate-600">
-          Visao rapida dos palpites, acertos, jogos mais previsiveis e participantes em destaque.
+          Leitura objetiva do jogo: participacao, pontos, picos e onde o admin precisa agir.
         </p>
       </section>
 
@@ -351,32 +582,37 @@ export function PanelPage() {
 
       <section className="mb-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
         <MetricCard
-          title="Participantes"
-          value={ranking.length}
-          detail={`${filteredPredictions.length} palpites no filtro`}
+          title="Participacao"
+          value={percent(filteredPredictions.length, expectedPredictions)}
+          detail={`${filteredPredictions.length} de ${expectedPredictions} palpites esperados`}
           icon={Users}
         />
         <MetricCard
-          title="Jogos com resultado"
-          value={finishedMatches.length}
-          detail={`${filteredMatches.length} jogos no recorte`}
-          icon={Activity}
+          title="Pontuacao aplicada"
+          value={percent(scoredPredictions.length, filteredPredictions.length)}
+          detail={`${scoredPredictions.length} de ${filteredPredictions.length} palpites avaliados`}
+          icon={BarChart3}
           tone="green"
         />
         <MetricCard
-          title="Taxa de placar exato"
-          value={percent(exactScoreHits, scoredPredictions.length)}
-          detail={`${exactScoreHits} placares em ${scoredPredictions.length} palpites pontuados`}
+          title="Acerto de classificado"
+          value={percent(classifiedHits, scoredPredictions.length)}
+          detail={`${classifiedHits} acertos em ${scoredPredictions.length} palpites pontuados`}
           icon={Target}
           tone="yellow"
         />
         <MetricCard
-          title="Pontos gerados"
-          value={totalPoints}
-          detail={`${formatNumber(totalPoints / Math.max(1, scoredPredictions.length))} pts por palpite pontuado`}
+          title="Pontos por palpite"
+          value={formatNumber(totalPoints / Math.max(1, scoredPredictions.length))}
+          detail={`${totalPoints} pontos gerados no recorte`}
           icon={Trophy}
           tone="red"
         />
+      </section>
+
+      <section className="mb-5 grid gap-5 lg:grid-cols-[.9fr_1.1fr]">
+        <PieChartCard slices={pointSlices} total={totalPoints} />
+        <PeakLineChart points={linePoints} />
       </section>
 
       <section className="mb-5 grid gap-5 lg:grid-cols-[1.15fr_.85fr]">
@@ -384,7 +620,10 @@ export function PanelPage() {
           <div className="mb-3 flex items-center justify-between gap-3">
             <div>
               <p className="text-sm font-bold uppercase text-betel-blue">Jogos</p>
-              <h2 className="text-xl font-black text-slate-950">Mais acertados pela galera</h2>
+              <h2 className="text-xl font-black text-slate-950">Partidas que mais mexeram no ranking</h2>
+              <p className="mt-1 text-sm text-slate-600">
+                Ordenado por pontos gerados, nao por quantidade de jogos.
+              </p>
             </div>
             <BarChart3 className="h-5 w-5 text-slate-400" aria-hidden="true" />
           </div>
@@ -399,7 +638,7 @@ export function PanelPage() {
         <div className="panel p-4">
           <div className="mb-3">
             <p className="text-sm font-bold uppercase text-betel-blue">Destaques</p>
-            <h2 className="text-xl font-black text-slate-950">Quem mais pontuou</h2>
+            <h2 className="text-xl font-black text-slate-950">Quem mais pontuou no recorte</h2>
           </div>
           <div className="grid gap-3">
             {userStats.slice(0, 6).map((item, index) => (
@@ -412,34 +651,36 @@ export function PanelPage() {
 
       <section className="grid gap-5 lg:grid-cols-3">
         <div className="panel p-4">
-          <div className="mb-3 flex items-center gap-2">
-            <Flame className="h-5 w-5 text-betel-red" aria-hidden="true" />
-            <h2 className="text-xl font-black text-slate-950">Raio-X dos acertos</h2>
-          </div>
-          <div className="grid gap-3 text-sm">
-            <div className="flex items-center justify-between rounded-lg bg-slate-50 p-3">
-              <span className="font-bold text-slate-600">Classificado correto</span>
-              <span className="font-black text-slate-950">
-                {classifiedHits} ({percent(classifiedHits, scoredPredictions.length)})
-              </span>
+          <h2 className="text-xl font-black text-slate-950">Leitura rapida</h2>
+          <div className="mt-3 grid gap-2">
+            <div className="rounded-lg bg-blue-50 p-3 text-sm text-blue-900">
+              <span className="font-black">Mais previsivel: </span>
+              {mostPredictableMatch
+                ? `${mostPredictableMatch.match.codigo} teve ${mostPredictableMatch.classifiedHits} acertos de classificado.`
+                : 'sem jogo pontuado suficiente no filtro.'}
             </div>
-            <div className="flex items-center justify-between rounded-lg bg-slate-50 p-3">
-              <span className="font-bold text-slate-600">Placar exato</span>
-              <span className="font-black text-slate-950">
-                {exactScoreHits} ({percent(exactScoreHits, scoredPredictions.length)})
-              </span>
+            <div className="rounded-lg bg-red-50 p-3 text-sm text-red-900">
+              <span className="font-black">Mais dificil: </span>
+              {hardestMatch
+                ? `${hardestMatch.match.codigo} nao gerou pontos entre palpites avaliados.`
+                : 'nenhum jogo zerado neste recorte.'}
             </div>
-            <div className="flex items-center justify-between rounded-lg bg-slate-50 p-3">
-              <span className="font-bold text-slate-600">Jogador do gol</span>
-              <span className="font-black text-slate-950">
-                {goalHits} ({percent(goalHits, scoredPredictions.length)})
-              </span>
+            <div className="rounded-lg bg-green-50 p-3 text-sm text-green-900">
+              <span className="font-black">Placar exato: </span>
+              {exactScoreHits} acertos ({percent(exactScoreHits, scoredPredictions.length)}).
+            </div>
+            <div className="rounded-lg bg-yellow-50 p-3 text-sm text-yellow-900">
+              <span className="font-black">Gols: </span>
+              {goalHits} palpites pontuaram com jogador do gol.
             </div>
           </div>
         </div>
 
         <div className="panel p-4">
-          <h2 className="text-xl font-black text-slate-950">Pontos de atencao</h2>
+          <div className="flex items-center gap-2">
+            <AlertTriangle className="h-5 w-5 text-yellow-600" aria-hidden="true" />
+            <h2 className="text-xl font-black text-slate-950">Pontos de atencao</h2>
+          </div>
           <div className="mt-3 grid gap-2">
             {matchesWithoutScore.slice(0, 5).map((match) => (
               <div key={match.id} className="rounded-lg bg-yellow-50 p-3 text-sm font-bold text-yellow-800">
