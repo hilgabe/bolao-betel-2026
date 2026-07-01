@@ -377,12 +377,19 @@ export function PanelPage() {
   const { ranking, loading: loadingRanking, error: rankingError } = useRanking()
   const [phaseFilter, setPhaseFilter] = useState('all')
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('all')
+  const [userFilter, setUserFilter] = useState('all')
   const [query, setQuery] = useState('')
 
   const phases = useMemo(
     () => [...new Set(matches.map((match) => match.fase))],
     [matches],
   )
+
+  const users = useMemo(
+    () => ranking.slice().sort((left, right) => left.nome.localeCompare(right.nome)),
+    [ranking],
+  )
+  const selectedUser = users.find((user) => user.uid === userFilter)
 
   const matchesById = useMemo(
     () => new Map(matches.map((match) => [match.id, match])),
@@ -406,16 +413,17 @@ export function PanelPage() {
     return predictions.filter((prediction) => {
       const match = matchesById.get(prediction.matchId)
       const matchIncluded = filteredMatchIds.has(prediction.matchId)
+      const userMatches = userFilter === 'all' || prediction.userId === userFilter
       const directSearch = predictionHasSearch(prediction, query)
       const matchSearch = match ? matchesSearch(match, query) : false
-      return matchIncluded && (directSearch || matchSearch)
+      return matchIncluded && userMatches && (directSearch || matchSearch)
     })
-  }, [filteredMatchIds, matchesById, predictions, query])
+  }, [filteredMatchIds, matchesById, predictions, query, userFilter])
 
   const matchStats = useMemo<MatchPanelStats[]>(() => {
     return filteredMatches
       .map((match) => {
-        const matchPredictions = predictions.filter((prediction) => prediction.matchId === match.id)
+        const matchPredictions = filteredPredictions.filter((prediction) => prediction.matchId === match.id)
         return {
           match,
           predictions: matchPredictions.length,
@@ -428,7 +436,7 @@ export function PanelPage() {
         }
       })
       .sort((left, right) => right.totalPoints - left.totalPoints || right.exactScoreHits - left.exactScoreHits)
-  }, [filteredMatches, predictions])
+  }, [filteredMatches, filteredPredictions])
 
   const userStats = useMemo<UserPanelStats[]>(() => {
     const byUser = new Map<string, UserPanelStats>()
@@ -464,9 +472,12 @@ export function PanelPage() {
   const classifiedHits = filteredPredictions.filter((prediction) => prediction.pontosClassificado > 0).length
   const goalHits = filteredPredictions.filter((prediction) => prediction.pontosGols > 0).length
   const totalPoints = filteredPredictions.reduce((sum, prediction) => sum + prediction.totalPontos, 0)
-  const expectedPredictions = ranking.length * filteredMatches.length
+  const expectedPredictions =
+    userFilter === 'all' ? ranking.length * filteredMatches.length : filteredMatches.length
   const matchesWithoutScore = filteredMatches.filter(
-    (match) => hasOfficialResult(match) && !predictions.some((prediction) => prediction.matchId === match.id && prediction.pontuado),
+    (match) =>
+      hasOfficialResult(match) &&
+      !filteredPredictions.some((prediction) => prediction.matchId === match.id && prediction.pontuado),
   )
   const pointSlices: ChartSlice[] = [
     {
@@ -533,7 +544,7 @@ export function PanelPage() {
           <Filter className="h-4 w-4 text-slate-500" aria-hidden="true" />
           <h2 className="text-base font-black text-slate-950">Filtros</h2>
         </div>
-        <div className="grid gap-3 md:grid-cols-[1fr_1fr_2fr]">
+        <div className="grid gap-3 md:grid-cols-[1fr_1fr_1.3fr_1.7fr]">
           <label>
             <span className="label">Fase</span>
             <select
@@ -563,17 +574,37 @@ export function PanelPage() {
             </select>
           </label>
           <label>
-            <span className="label">Buscar jogo ou pessoa</span>
+            <span className="label">Pessoa</span>
+            <select
+              className="input mt-1"
+              value={userFilter}
+              onChange={(event) => setUserFilter(event.target.value)}
+            >
+              <option value="all">Todos os {users.length} usuarios</option>
+              {users.map((user) => (
+                <option key={user.uid} value={user.uid}>
+                  {user.nome}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label>
+            <span className="label">Buscar jogo</span>
             <div className="mt-1 flex items-center rounded-lg border border-slate-300 bg-white px-3 focus-within:border-betel-blue focus-within:ring-4 focus-within:ring-blue-100">
               <Search className="h-4 w-4 shrink-0 text-slate-500" aria-hidden="true" />
               <input
                 value={query}
                 onChange={(event) => setQuery(event.target.value)}
-                placeholder="Gabriel, J76, BRA, semifinal..."
+                placeholder="J76, BRA, semifinal..."
                 className="w-full border-0 bg-transparent px-2 py-2 text-sm outline-none"
               />
             </div>
           </label>
+        </div>
+        <div className="mt-3 rounded-lg bg-slate-50 p-3 text-sm text-slate-600">
+          <span className="font-black text-slate-950">Recorte atual: </span>
+          {selectedUser ? selectedUser.nome : `todos os ${users.length} usuarios`} em {filteredMatches.length}{' '}
+          jogos encontrados.
         </div>
       </section>
 
