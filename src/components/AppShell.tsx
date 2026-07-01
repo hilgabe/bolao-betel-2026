@@ -2,7 +2,6 @@ import {
   BookOpen,
   ChartNoAxesCombined,
   CalendarDays,
-  ClipboardList,
   Home,
   LogOut,
   Shield,
@@ -15,10 +14,14 @@ import { useAuth } from '../context/auth'
 const navItems = [
   { to: '/home', label: 'Home', icon: Home },
   { to: '/jogos', label: 'Jogos', icon: CalendarDays },
-  { to: '/painel', label: 'Painel', icon: ChartNoAxesCombined },
   { to: '/tabela', label: 'Tabela', icon: Table2 },
   { to: '/regras', label: 'Regras', icon: BookOpen },
   { to: '/ranking', label: 'Ranking', icon: Trophy },
+]
+
+const adminNavItems = [
+  { to: '/painel', label: 'Painel', icon: ChartNoAxesCombined },
+  { to: '/admin', label: 'Admin', icon: Shield },
 ]
 
 function navClass(isActive: boolean) {
@@ -30,9 +33,19 @@ function navClass(isActive: boolean) {
   ].join(' ')
 }
 
+function mobileNavClass(isActive: boolean) {
+  return [
+    'grid min-w-0 place-items-center rounded-lg px-2 py-2 text-xs font-bold transition',
+    isActive
+      ? 'bg-betel-blue text-white'
+      : 'text-slate-600 hover:bg-slate-100 hover:text-slate-950',
+  ].join(' ')
+}
+
 export function AppShell() {
   const { logout, profile } = useAuth()
   const navigate = useNavigate()
+  const visibleNavItems = profile?.role === 'admin' ? [...navItems, ...adminNavItems] : navItems
 
   async function handleLogout() {
     await logout()
@@ -66,18 +79,12 @@ export function AppShell() {
           </button>
 
           <div className="hidden items-center gap-2 md:flex">
-            {navItems.map((item) => (
+            {visibleNavItems.map((item) => (
               <NavLink key={item.to} to={item.to} className={({ isActive }) => navClass(isActive)}>
                 <item.icon className="h-4 w-4" aria-hidden="true" />
                 {item.label}
               </NavLink>
             ))}
-            {profile?.role === 'admin' ? (
-              <NavLink to="/admin" className={({ isActive }) => navClass(isActive)}>
-                <Shield className="h-4 w-4" aria-hidden="true" />
-                Admin
-              </NavLink>
-            ) : null}
           </div>
 
           <button type="button" onClick={handleLogout} className="btn-secondary px-3" title="Sair">
@@ -92,19 +99,21 @@ export function AppShell() {
       </main>
 
       <nav className="fixed inset-x-0 bottom-0 z-30 border-t border-slate-200 bg-white/95 p-2 backdrop-blur md:hidden">
-        <div className="mx-auto flex max-w-xl gap-1">
-          {navItems.map((item) => (
-            <NavLink key={item.to} to={item.to} className={({ isActive }) => navClass(isActive)}>
+        <div
+          className="mx-auto grid max-w-xl gap-1"
+          style={{ gridTemplateColumns: `repeat(${visibleNavItems.length}, minmax(0, 1fr))` }}
+        >
+          {visibleNavItems.map((item) => (
+            <NavLink
+              key={item.to}
+              to={item.to}
+              className={({ isActive }) => mobileNavClass(isActive)}
+              title={item.label}
+            >
               <item.icon className="h-4 w-4" aria-hidden="true" />
-              <span className="sr-only sm:not-sr-only">{item.label}</span>
+              <span className="sr-only">{item.label}</span>
             </NavLink>
           ))}
-          {profile?.role === 'admin' ? (
-            <NavLink to="/admin" className={({ isActive }) => navClass(isActive)}>
-              <ClipboardList className="h-4 w-4" aria-hidden="true" />
-              <span className="sr-only sm:not-sr-only">Admin</span>
-            </NavLink>
-          ) : null}
         </div>
       </nav>
     </div>

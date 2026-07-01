@@ -23,12 +23,12 @@ function App() {
             <Route path="/" element={<Navigate to="/home" replace />} />
             <Route path="/home" element={<HomePage />} />
             <Route path="/jogos" element={<MatchesPage />} />
-            <Route path="/painel" element={<PanelPage />} />
             <Route path="/palpite/:matchId" element={<PredictionPage />} />
             <Route path="/tabela" element={<TablePage />} />
             <Route path="/regras" element={<RulesPage />} />
             <Route path="/ranking" element={<RankingPage />} />
             <Route element={<AdminRoute />}>
+              <Route path="/painel" element={<PanelPage />} />
               <Route path="/admin" element={<AdminPage />} />
               <Route path="/admin/jogo/:matchId" element={<AdminMatchPage />} />
             </Route>
